@@ -2,9 +2,11 @@
 """Build-time renderer for the news-image-20261121 entry.
 
 Draws entry.png (1024x1024): one clean, professional newspaper page summing
-up Saturday 21 November 2026. Build-time only: the graded program (main.py)
-just copies the finished entry.png. Pillow is used here, at build time;
-main.py is pure stdlib. No network, no randomness: same input, same bytes.
+up Saturday 21 November 2026, with a real photo thumbnail above each of the
+three lead stories (thumbs/*.jpg, Wikimedia Commons photographs prepared by
+tools/prep_thumbs.py). Build-time only: the graded program (main.py) just
+copies the finished entry.png. Pillow is used here, at build time; main.py
+is pure stdlib. No network, no randomness: same input, same bytes.
 """
 import os
 from PIL import Image, ImageDraw, ImageFont
@@ -248,17 +250,30 @@ CONTINENTS = [NORTH_AMERICA, SOUTH_AMERICA, AFRICA, EUROPE, ASIA,
               AUSTRALIA, UK, JAPAN, NEW_ZEALAND, MADAGASCAR]
 
 
+# Lead thumbnails: real photographs (Wikimedia Commons, freely licensed).
+# Resized from the verified downloads by tools/prep_thumbs.py into
+# thumbs/*.jpg (314x88, JPEG q82). One thumb per lead column, directly above
+# its headline; the caption names the place (and date for Riyadh), so no
+# photo is ever presented as the event itself.
+THUMBS = [
+    ("thumbs/antalya.jpg", "Antalya coast"),
+    ("thumbs/riyadh.jpg", "Kingdom Centre, Riyadh (Oct 2024)"),
+    ("thumbs/junin.jpg", "Lake Junín, Peru"),
+]
+THUMB_H = 88
+
+
 # ---------------------------------------------------------------- sections
 def draw_masthead(d):
     y = 18
     d.text((W // 2, y), "ONE DAY", font=font(SERIF_B, 46), fill=INK, anchor="ma")
-    y += 58
+    y += 54
     d.text((W // 2, y), "THE WORLD\u2019S NEWS IN ONE IMAGE",
            font=font(SANS_B, 12), fill=GREY, anchor="ma")
-    y += 22
+    y += 20
     d.text((W // 2, y), "Saturday 21 November 2026",
            font=font(SERIF_B, 34), fill=INK, anchor="ma")
-    y += 48
+    y += 44
     d.line([(M, y), (W - M, y)], fill=INK, width=2)
     return y + 8
 
@@ -271,10 +286,10 @@ def draw_stats(d, y):
     f_lab = font(SANS, 10)
     for i, (num, lab) in enumerate(STATS):
         x0 = M + i * (bw + gap)
-        d.rectangle([x0, y, x0 + bw, y + 42], outline=RULE, width=1)
-        d.text((x0 + bw // 2, y + 3), num, font=f_num, fill=INK, anchor="ma")
-        d.text((x0 + bw // 2, y + 30), lab, font=f_lab, fill=GREY, anchor="ma")
-    return y + 48
+        d.rectangle([x0, y, x0 + bw, y + 40], outline=RULE, width=1)
+        d.text((x0 + bw // 2, y + 2), num, font=f_num, fill=INK, anchor="ma")
+        d.text((x0 + bw // 2, y + 28), lab, font=f_lab, fill=GREY, anchor="ma")
+    return y + 44
 
 
 def draw_regions(d, y):
@@ -284,8 +299,23 @@ def draw_regions(d, y):
     line = "  \u00b7  ".join(parts) + "  =  36 STORIES"
     f = font(SANS_B, 12)
     d.text((W // 2, y), line, font=f, fill=INK, anchor="ma")
-    d.line([(M, y + 20), (W - M, y + 20)], fill=RULE, width=1)
-    return y + 26
+    d.line([(M, y + 16), (W - M, y + 16)], fill=RULE, width=1)
+    return y + 22
+
+
+def draw_thumbs(img, d, y):
+    """One real photo per lead column, directly above its headline."""
+    col_w = (CW - 2 * 12) // 3
+    f_cap = font(SANS, 11)
+    base = os.path.dirname(os.path.abspath(__file__))
+    for i, (path, cap) in enumerate(THUMBS):
+        x = M + i * (col_w + 12)
+        th = Image.open(os.path.join(base, path)).convert("RGB")
+        img.paste(th, (x, y))
+        d.rectangle([x, y, x + col_w - 1, y + THUMB_H - 1],
+                    outline=RULE, width=1)
+        d.text((x, y + THUMB_H + 3), cap, font=f_cap, fill=GREY)
+    return y + THUMB_H + 3 + 12 + 4
 
 
 def draw_leads(d, y):
@@ -294,27 +324,29 @@ def draw_leads(d, y):
     f_head = font(SERIF_B, 21)
     f_body = font(SERIF, 13)
     top = y
+    bottom = top
     for i, lead in enumerate(LEADS):
         x = M + i * (col_w + 12)
         yy = top
         d.text((x, yy), lead["kicker"], font=f_kick, fill=RED)
         yy += 20
         yy = block(d, x, yy, wrap(d, lead["head"], f_head, col_w),
-                   f_head, leading=24)
+                   f_head, leading=23)
         yy += 4
-        block(d, x, yy, wrap(d, lead["body"], f_body, col_w),
-              f_body, leading=17)
-        if i < 2:
-            d.line([(x + col_w + 6, top), (x + col_w + 6, top + 174)],
-                   fill=RULE, width=1)
-    return top + 174
+        yy = block(d, x, yy, wrap(d, lead["body"], f_body, col_w),
+                   f_body, leading=16)
+        bottom = max(bottom, yy)
+    for i in range(2):
+        x = M + (i + 1) * col_w + i * 12 + 6
+        d.line([(x, top), (x, bottom)], fill=RULE, width=1)
+    return bottom + 6
 
 
 def draw_cards(d, y):
     cols, rows = 5, 2
     gap_x, gap_y = 8, 6
     cw = (CW - gap_x * (cols - 1)) // cols
-    rh = 88
+    rh = 80
     f_lab = font(SANS_B, 11)
     f_head = font(SERIF_B, 14)
     f_body = font(SERIF, 11)
@@ -325,14 +357,14 @@ def draw_cards(d, y):
         d.line([(x, yy - 3), (x + cw, yy - 3)], fill=RULE, width=1)
         d.text((x, yy), lab, font=f_lab, fill=RED)
         yy += 16
-        yy = block(d, x, yy, wrap(d, head, f_head, cw), f_head, leading=17)
+        yy = block(d, x, yy, wrap(d, head, f_head, cw), f_head, leading=16)
         yy += 2
-        block(d, x, yy, wrap(d, body, f_body, cw), f_body, leading=14)
+        block(d, x, yy, wrap(d, body, f_body, cw), f_body, leading=13)
     return y + rows * rh + gap_y
 
 
 def draw_map(d, y):
-    map_w, map_h = 640, 180
+    map_w, map_h = 640, 144
     key_x = M + map_w + 14
     d.rectangle([M, y, M + map_w, y + map_h], fill=NAVY)
     for lon in range(-180, 181, 30):
@@ -362,17 +394,18 @@ def draw_map(d, y):
         d.ellipse([x - r, yy - r, x + r, yy + r], fill=WHITE,
                   outline=RED, width=2)
         d.text((x, yy), str(i + 1), font=f_pin, fill=RED, anchor="mm")
-    f_key = font(SANS, 11)
-    f_keyb = font(SANS_B, 11)
+    f_key = font(SANS, 10)
+    f_keyb = font(SANS_B, 10)
     yy = y + 2
     d.text((key_x, yy), "ON THE MAP", font=f_keyb, fill=RED)
-    yy += 16
+    yy += 14
     for line in MAP_KEY:
         num, rest = line.split(" ", 1)
         d.text((key_x, yy), num, font=f_keyb, fill=RED)
         d.text((key_x + 22, yy), rest, font=f_key, fill=INK)
-        yy += 13
-    return y + map_h + 6
+        yy += 10
+    key_bottom = yy - 10 + 10  # top of last line + its text height
+    return max(y + map_h + 6, key_bottom + 4)
 
 
 def draw_also(d, y):
@@ -389,8 +422,8 @@ def draw_also(d, y):
             pw = d.textlength(place, font=f_place)
             d.text((x + 12 + pw + 4, yy), "\u2014 " + text,
                    font=f_text, fill=INK)
-            yy += 15
-    return y + 12 * 15
+            yy += 13
+    return y + 12 * 13
 
 
 def draw_datecheck(d, y):
@@ -416,13 +449,14 @@ def main():
     img = Image.new("RGB", (W, H), PAPER)
     d = ImageDraw.Draw(img)
     y = draw_masthead(d)
-    y = draw_stats(d, y + 4)
-    y = draw_regions(d, y + 4)
-    y = draw_leads(d, y + 4)
-    y = draw_cards(d, y + 4)
-    y = draw_map(d, y + 4)
-    y = draw_also(d, y + 4)
-    y = draw_datecheck(d, y + 4)
+    y = draw_stats(d, y + 3)
+    y = draw_regions(d, y + 3)
+    y = draw_thumbs(img, d, y + 3)
+    y = draw_leads(d, y + 3)
+    y = draw_cards(d, y + 3)
+    y = draw_map(d, y + 3)
+    y = draw_also(d, y + 3)
+    y = draw_datecheck(d, y + 3)
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                        "entry.png")
     img.save(out, "PNG", optimize=True)
