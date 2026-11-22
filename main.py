@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Entry program for the news-image-20261121 bounty (program/v1).
 
-Writes the finished page to /output/entry.png. The image itself was drawn
-at build time by render.py (Pillow, build-time only) and is committed in
-this repository as entry.png; this program is pure stdlib and only copies
-it, so the run is deterministic: same input bytes, same output bytes.
+Writes the finished page to /output/entry.png. The image was drawn at
+build time by render.py (Pillow, build-time only) — a cream broadsheet of
+37 stories from 9 regions, every one dated Saturday 21 November 2026 —
+and is committed in this repository as entry.png; this program is pure
+stdlib and only copies it, so the run is deterministic: same input bytes,
+same output bytes. Rebuilt 22 November 2026 (v2): cream broadsheet,
+37 stories, 9 regions, every one dated Saturday 21 November 2026.
 """
 import os
 import shutil
